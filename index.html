@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Task Manager</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e1e;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    #addTaskBtn {
+      display: block;
+      margin: 0 auto 30px;
+      padding: 10px 20px;
+      background: #4cafef;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #addTaskBtn:hover {
+      background: #2196f3;
+    }
+    .task-container {
+      background: #2a2a2a;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .task-header input[type="text"] {
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #fff;
+      flex: 1;
+    }
+    .task-header button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #e53935;
+      font-size: 18px;
+    }
+    .subtasks-container {
+      margin-top: 10px;
+      display: none;
+    }
+    .subtask {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      align-items: center;
+      padding: 6px;
+      border-radius: 4px;
+    }
+    .subtask input[type="text"] {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background: #1e1e1e;
+      color: #fff;
+    }
+    .subtask select {
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      background: #1e1e1e;
+      color: #fff;
+    }
+    .subtask button {
+      background: none;
+      border: none;
+      color: #e53935;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .progress-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 10px;
+      background: #444;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #4caf50;
+      width: 0%;
+    }
+    .status-red { background: rgba(244, 67, 54, 0.2); }
+    .status-yellow { background: rgba(255, 193, 7, 0.2); }
+    .status-green { background: rgba(76, 175, 80, 0.2); }
+    button.add-subtask {
+      margin-top: 10px;
+      padding: 6px 12px;
+      background: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.add-subtask:hover {
+      background: #1976d2;
+    }
+    select.sort-select {
+      margin-top: 8px;
+      padding: 4px;
+      background: #1e1e1e;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+    }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYyxNwNaAuxsbCpi2TMPcaecYn1aD0wHM",
+      authDomain: "weaknesstaskmanager.firebaseapp.com",
+      projectId: "weaknesstaskmanager",
+      storageBucket: "weaknesstaskmanager.firebasestorage.app",
+      messagingSenderId: "719376323749",
+      appId: "1:719376323749:web:d7bc4c01c41555497fa94c",
+      measurementId: "G-K9Q5RV17XS"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const tasksDiv = document.getElementById('tasks');
+      const addTaskBtn = document.getElementById('addTaskBtn');
+
+      addTaskBtn.onclick = async () => {
+        await addDoc(collection(db, "tasks"), { title: "Новая задача", subtasks: [], sort: "original", expanded: false });
+      };
+
+      onSnapshot(collection(db, "tasks"), (snapshot) => {
+        tasksDiv.innerHTML = '';
+        snapshot.forEach(docSnap => {
+          renderTask(docSnap.id, docSnap.data());
+        });
+      });
+
+      async function toggleExpand(taskId, taskData) {
+        await updateDoc(doc(db, "tasks", taskId), { expanded: !taskData.expanded });
+      }
+
+      function renderTask(taskId, taskData) {
+        const taskContainer = document.createElement('div');
+        taskContainer.className = 'task-container';
+
+        const header = document.createElement('div');
+        header.className = 'task-header';
+
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.value = taskData.title;
+        titleInput.onchange = async () => {
+          await updateDoc(doc(db, "tasks", taskId), { title: titleInput.value });
+        };
+        header.appendChild(titleInput);
+
+        const expandBtn = document.createElement('button');
+        expandBtn.innerHTML = taskData.expanded ? '🔼' : '🔽';
+        expandBtn.onclick = () => toggleExpand(taskId, taskData);
+        header.appendChild(expandBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.onclick = async () => { await deleteDoc(doc(db, "tasks", taskId)); };
+        header.appendChild(deleteBtn);
+
+        taskContainer.appendChild(header);
+
+        const addSubtaskBtn = document.createElement('button');
+        addSubtaskBtn.className = 'add-subtask';
+        addSubtaskBtn.innerText = 'Добавить подзадачу';
+        addSubtaskBtn.onclick = async () => {
+          const updated = [...taskData.subtasks, { name: "Новая подзадача", status: "не выполнено" }];
+          await updateDoc(doc(db, "tasks", taskId), { subtasks: updated });
+        };
+        taskContainer.appendChild(addSubtaskBtn);
+
+        const sortSelect = document.createElement('select');
+        sortSelect.className = 'sort-select';
+        ['original', 'byStatus'].forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt;
+          option.innerText = opt === 'original' ? 'Оригинал' : 'По статусу';
+          if (taskData.sort === opt) option.selected = true;
+          sortSelect.appendChild(option);
+        });
+        sortSelect.onchange = async () => {
+          await updateDoc(doc(db, "tasks", taskId), { sort: sortSelect.value });
+        };
+        taskContainer.appendChild(sortSelect);
+
+        const subtasksDiv = document.createElement('div');
+        subtasksDiv.className = 'subtasks-container';
+        if (taskData.expanded) subtasksDiv.style.display = 'block';
+
+        let subtasks = [...taskData.subtasks];
+        if (taskData.sort === 'byStatus') {
+          subtasks.sort((a, b) => a.status.localeCompare(b.status));
+        }
+
+        let completed = 0;
+        subtasks.forEach((st, index) => {
+          const subtaskDiv = document.createElement('div');
+          subtaskDiv.className = 'subtask';
+
+          if (st.status === 'не выполнено') subtaskDiv.classList.add('status-red');
+          if (st.status === 'в работе') subtaskDiv.classList.add('status-yellow');
+          if (st.status === 'выполнено') subtaskDiv.classList.add('status-green');
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = st.name;
+          input.onchange = async () => {
+            taskData.subtasks[index].name = input.value;
+            await updateDoc(doc(db, "tasks", taskId), { subtasks: taskData.subtasks });
+          };
+
+          const select = document.createElement('select');
+          ['не выполнено', 'в работе', 'выполнено'].forEach(status => {
+            const option = document.createElement('option');
+            option.value = status;
+            option.innerText = status;
+            if (st.status === status) option.selected = true;
+            select.appendChild(option);
+          });
+          select.onchange = async () => {
+            taskData.subtasks[index].status = select.value;
+            await updateDoc(doc(db, "tasks", taskId), { subtasks: taskData.subtasks });
+          };
+
+          if (st.status === 'выполнено') completed++;
+
+          const deleteSubBtn = document.createElement('button');
+          deleteSubBtn.innerHTML = '🗑️';
+          deleteSubBtn.onclick = async () => {
+            taskData.subtasks.splice(index, 1);
+            await updateDoc(doc(db, "tasks", taskId), { subtasks: taskData.subtasks });
+          };
+
+          subtaskDiv.appendChild(input);
+          subtaskDiv.appendChild(select);
+          subtaskDiv.appendChild(deleteSubBtn);
+          subtasksDiv.appendChild(subtaskDiv);
+        });
+
+        taskContainer.appendChild(subtasksDiv);
+
+        const progressWrapper = document.createElement('div');
+        progressWrapper.className = 'progress-wrapper';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        const progressFill = document.createElement('div');
+        progressFill.className = 'progress-fill';
+
+        let percent = 0;
+        if (taskData.subtasks.length > 0) {
+          percent = Math.round((completed / taskData.subtasks.length) * 100);
+          progressFill.style.width = percent + '%';
+        }
+
+        const percentText = document.createElement('span');
+        percentText.innerText = percent + '%';
+
+        progressBar.appendChild(progressFill);
+        progressWrapper.appendChild(progressBar);
+        progressWrapper.appendChild(percentText);
+        taskContainer.appendChild(progressWrapper);
+
+        tasksDiv.appendChild(taskContainer);
+      }
+    });
+  </script>
+</head>
+<body>
+  <h1>Task Manager</h1>
+  <button id="addTaskBtn">Создать задачу</button>
+  <div id="tasks"></div>
+</body>
+</html>
