@@ -1,311 +1,1039 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Task Manager</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #1e1e1e;
-      color: #e0e0e0;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-      color: #fff;
-      margin-bottom: 20px;
-    }
-    #addTaskBtn {
-      display: block;
-      margin: 0 auto 30px;
-      padding: 10px 20px;
-      background: #4cafef;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    #addTaskBtn:hover {
-      background: #2196f3;
-    }
-    .task-container {
-      background: #2a2a2a;
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 15px;
-    }
-    .task-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .task-header input[type="text"] {
-      font-size: 18px;
-      font-weight: bold;
-      border: none;
-      outline: none;
-      background: transparent;
-      color: #fff;
-      flex: 1;
-    }
-    .task-header button {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #e53935;
-      font-size: 18px;
-    }
-    .subtasks-container {
-      margin-top: 10px;
-      display: none;
-    }
-    .subtask {
-      display: flex;
-      gap: 10px;
-      margin-top: 8px;
-      align-items: center;
-      padding: 6px;
-      border-radius: 4px;
-    }
-    .subtask input[type="text"] {
-      flex: 1;
-      padding: 6px;
-      border: 1px solid #555;
-      border-radius: 4px;
-      background: #1e1e1e;
-      color: #fff;
-    }
-    .subtask select {
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #555;
-      background: #1e1e1e;
-      color: #fff;
-    }
-    .subtask button {
-      background: none;
-      border: none;
-      color: #e53935;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .progress-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .progress-bar {
-      flex: 1;
-      height: 10px;
-      background: #444;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: #4caf50;
-      width: 0%;
-    }
-    .status-red { background: rgba(244, 67, 54, 0.2); }
-    .status-yellow { background: rgba(255, 193, 7, 0.2); }
-    .status-green { background: rgba(76, 175, 80, 0.2); }
-    button.add-subtask {
-      margin-top: 10px;
-      padding: 6px 12px;
-      background: #2196f3;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    button.add-subtask:hover {
-      background: #1976d2;
-    }
-    select.sort-select {
-      margin-top: 8px;
-      padding: 4px;
-      background: #1e1e1e;
-      color: #fff;
-      border: 1px solid #555;
-      border-radius: 4px;
-    }
-  </style>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYyxNwNaAuxsbCpi2TMPcaecYn1aD0wHM",
-      authDomain: "weaknesstaskmanager.firebaseapp.com",
-      projectId: "weaknesstaskmanager",
-      storageBucket: "weaknesstaskmanager.firebasestorage.app",
-      messagingSenderId: "719376323749",
-      appId: "1:719376323749:web:d7bc4c01c41555497fa94c",
-      measurementId: "G-K9Q5RV17XS"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const tasksDiv = document.getElementById('tasks');
-      const addTaskBtn = document.getElementById('addTaskBtn');
-
-      addTaskBtn.onclick = async () => {
-        await addDoc(collection(db, "tasks"), { title: "Новая задача", subtasks: [], sort: "original", expanded: false });
-      };
-
-      onSnapshot(collection(db, "tasks"), (snapshot) => {
-        tasksDiv.innerHTML = '';
-        snapshot.forEach(docSnap => {
-          renderTask(docSnap.id, docSnap.data());
-        });
-      });
-
-      async function toggleExpand(taskId, taskData) {
-        await updateDoc(doc(db, "tasks", taskId), { expanded: !taskData.expanded });
-      }
-
-      function renderTask(taskId, taskData) {
-        const taskContainer = document.createElement('div');
-        taskContainer.className = 'task-container';
-
-        const header = document.createElement('div');
-        header.className = 'task-header';
-
-        const titleInput = document.createElement('input');
-        titleInput.type = 'text';
-        titleInput.value = taskData.title;
-        titleInput.onchange = async () => {
-          await updateDoc(doc(db, "tasks", taskId), { title: titleInput.value });
-        };
-        header.appendChild(titleInput);
-
-        const expandBtn = document.createElement('button');
-        expandBtn.innerHTML = taskData.expanded ? '🔼' : '🔽';
-        expandBtn.onclick = () => toggleExpand(taskId, taskData);
-        header.appendChild(expandBtn);
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '🗑️';
-        deleteBtn.onclick = async () => { await deleteDoc(doc(db, "tasks", taskId)); };
-        header.appendChild(deleteBtn);
-
-        taskContainer.appendChild(header);
-
-        const addSubtaskBtn = document.createElement('button');
-        addSubtaskBtn.className = 'add-subtask';
-        addSubtaskBtn.innerText = 'Добавить подзадачу';
-        addSubtaskBtn.onclick = async () => {
-          const updated = [...taskData.subtasks, { name: "Новая подзадача", status: "не выполнено" }];
-          await updateDoc(doc(db, "tasks", taskId), { subtasks: updated });
-        };
-        taskContainer.appendChild(addSubtaskBtn);
-
-        const sortSelect = document.createElement('select');
-        sortSelect.className = 'sort-select';
-        ['original', 'byStatus'].forEach(opt => {
-          const option = document.createElement('option');
-          option.value = opt;
-          option.innerText = opt === 'original' ? 'Оригинал' : 'По статусу';
-          if (taskData.sort === opt) option.selected = true;
-          sortSelect.appendChild(option);
-        });
-        sortSelect.onchange = async () => {
-          await updateDoc(doc(db, "tasks", taskId), { sort: sortSelect.value });
-        };
-        taskContainer.appendChild(sortSelect);
-
-        const subtasksDiv = document.createElement('div');
-        subtasksDiv.className = 'subtasks-container';
-        if (taskData.expanded) subtasksDiv.style.display = 'block';
-
-        let subtasks = [...taskData.subtasks];
-        if (taskData.sort === 'byStatus') {
-          subtasks.sort((a, b) => a.status.localeCompare(b.status));
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --primary-dark: #5d8bc2;
+            --secondary: #6b8cae;
+            --success: #5cb85c;
+            --warning: #f0ad4e;
+            --danger: #d9534f;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --container-bg: white;
+            --border-color: #ddd;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --subtask-bg: #f8f9fa;
+            --debug-bg: #f0f0f0;
+            --progress-bg: #e9ecef;
         }
 
-        let completed = 0;
-        subtasks.forEach((st, index) => {
-          const subtaskDiv = document.createElement('div');
-          subtaskDiv.className = 'subtask';
-
-          if (st.status === 'не выполнено') subtaskDiv.classList.add('status-red');
-          if (st.status === 'в работе') subtaskDiv.classList.add('status-yellow');
-          if (st.status === 'выполнено') subtaskDiv.classList.add('status-green');
-
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.value = st.name;
-          input.onchange = async () => {
-            taskData.subtasks[index].name = input.value;
-            await updateDoc(doc(db, "tasks", taskId), { subtasks: taskData.subtasks });
-          };
-
-          const select = document.createElement('select');
-          ['не выполнено', 'в работе', 'выполнено'].forEach(status => {
-            const option = document.createElement('option');
-            option.value = status;
-            option.innerText = status;
-            if (st.status === status) option.selected = true;
-            select.appendChild(option);
-          });
-          select.onchange = async () => {
-            taskData.subtasks[index].status = select.value;
-            await updateDoc(doc(db, "tasks", taskId), { subtasks: taskData.subtasks });
-          };
-
-          if (st.status === 'выполнено') completed++;
-
-          const deleteSubBtn = document.createElement('button');
-          deleteSubBtn.innerHTML = '🗑️';
-          deleteSubBtn.onclick = async () => {
-            taskData.subtasks.splice(index, 1);
-            await updateDoc(doc(db, "tasks", taskId), { subtasks: taskData.subtasks });
-          };
-
-          subtaskDiv.appendChild(input);
-          subtaskDiv.appendChild(select);
-          subtaskDiv.appendChild(deleteSubBtn);
-          subtasksDiv.appendChild(subtaskDiv);
-        });
-
-        taskContainer.appendChild(subtasksDiv);
-
-        const progressWrapper = document.createElement('div');
-        progressWrapper.className = 'progress-wrapper';
-        const progressBar = document.createElement('div');
-        progressBar.className = 'progress-bar';
-        const progressFill = document.createElement('div');
-        progressFill.className = 'progress-fill';
-
-        let percent = 0;
-        if (taskData.subtasks.length > 0) {
-          percent = Math.round((completed / taskData.subtasks.length) * 100);
-          progressFill.style.width = percent + '%';
+        .dark-theme {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --container-bg: #2d2d2d;
+            --border-color: #444;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --subtask-bg: #3a3a3a;
+            --debug-bg: #333;
+            --progress-bg: #444;
         }
 
-        const percentText = document.createElement('span');
-        percentText.innerText = percent + '%';
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-        progressBar.appendChild(progressFill);
-        progressWrapper.appendChild(progressBar);
-        progressWrapper.appendChild(percentText);
-        taskContainer.appendChild(progressWrapper);
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
 
-        tasksDiv.appendChild(taskContainer);
-      }
-    });
-  </script>
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--container-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-color);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .theme-toggle {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .theme-icon {
+            font-size: 18px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--primary);
+        }
+
+        .debug-info {
+            background-color: var(--debug-bg);
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+            transition: background-color 0.3s;
+        }
+
+        .task-form {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .task-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-right: 10px;
+            background-color: var(--container-bg);
+            color: var(--text-color);
+            transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .task-list {
+            list-style-type: none;
+        }
+
+        .task-item {
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px var(--shadow-color);
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .task-title-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .task-title {
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 5px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            color: var(--text-color);
+            transition: border-color 0.3s, color 0.3s;
+        }
+
+        .task-title:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: var(--progress-bg);
+            border-radius: 4px;
+            overflow: hidden;
+            height: 8px;
+            transition: background-color 0.3s;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--success);
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-color);
+            text-align: right;
+            opacity: 0.8;
+            transition: color 0.3s;
+        }
+
+        .task-status-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+            min-width: 120px;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        .status-not-started {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-in-progress {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .subtask-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0 10px 0;
+        }
+
+        .subtask-sort {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .subtask-form {
+            display: flex;
+            margin: 10px 0;
+        }
+
+        .subtask-list {
+            list-style-type: none;
+            margin-top: 10px;
+        }
+
+        .subtask-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            background-color: var(--subtask-bg);
+            transition: background-color 0.3s;
+        }
+
+        .subtask-title {
+            flex: 1;
+            margin: 0 10px;
+            padding: 5px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            color: var(--text-color);
+            transition: border-color 0.3s, color 0.3s;
+        }
+
+        .subtask-title:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .sort-options {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .sort-select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--container-bg);
+            color: var(--text-color);
+            transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: var(--container-bg);
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 2px 10px var(--shadow-color);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-color);
+            opacity: 0.7;
+            transition: color 0.3s;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .debug-toggle {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Task Manager</h1>
-  <button id="addTaskBtn">Создать задачу</button>
-  <div id="tasks"></div>
+    <div class="container">
+        <div class="header">
+            <h1>Task Manager</h1>
+            <button class="theme-toggle" id="themeToggle">
+                <span class="theme-icon" id="themeIcon">🌙</span>
+                <span id="themeText">Тёмная тема</span>
+            </button>
+        </div>
+        
+        <button class="debug-toggle" id="debugToggle">Показать отладку</button>
+        
+        <div class="debug-info" id="debugInfo">
+            <div>Статус Firebase: <span id="firebaseStatus">Не инициализирован</span></div>
+            <div>Количество задач: <span id="tasksCount">0</span></div>
+            <div>Последняя ошибка: <span id="lastError">Нет</span></div>
+            <div>Тема: <span id="themeStatus">Светлая</span></div>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="task-form">
+            <input type="text" class="task-input" id="taskInput" placeholder="Добавить новую задачу...">
+            <button class="btn btn-primary" id="addTaskBtn">Добавить</button>
+        </div>
+        
+        <div class="sort-options">
+            <select class="sort-select" id="sortSelect">
+                <option value="created">По дате создания</option>
+                <option value="status">По статусу</option>
+                <option value="title">По названию</option>
+                <option value="progress">По прогрессу</option>
+            </select>
+            <button class="btn btn-primary" id="sortBtn">Сортировать задачи</button>
+            <button class="btn btn-warning" id="forceRefreshBtn">Обновить данные</button>
+        </div>
+        
+        <div class="loading" id="loadingIndicator">Загрузка задач...</div>
+        
+        <ul class="task-list" id="taskList"></ul>
+
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <h3>Задач пока нет</h3>
+            <p>Добавьте первую задачу, используя форму выше</p>
+            <p>Или проверьте подключение к Firebase и правила доступа</p>
+        </div>
+    </div>
+    
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <h3>Вы точно хотите удалить?</h3>
+            <p id="deleteItemName"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" id="confirmDelete">Да</button>
+                <button class="btn btn-primary" id="cancelDelete">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Конфигурация Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYyxNwNaAuxsbCpi2TMPcaecYn1aD0wHM",
+            authDomain: "weaknesstaskmanager.firebaseapp.com",
+            projectId: "weaknesstaskmanager",
+            storageBucket: "weaknesstaskmanager.firebasestorage.app",
+            messagingSenderId: "719376323749",
+            appId: "1:719376323749:web:d7bc4c01c41555497fa94c",
+            measurementId: "G-K9Q5RV17XS"
+        };
+
+        // Инициализация Firebase
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            document.getElementById('firebaseStatus').textContent = 'Инициализирован';
+        } catch (error) {
+            document.getElementById('firebaseStatus').textContent = 'Ошибка: ' + error.message;
+            showError("Ошибка инициализации Firebase: " + error.message);
+        }
+
+        // Переменные для управления состоянием
+        let tasks = [];
+        let currentDeleteId = null;
+        let isDeletingTask = false;
+        let currentDeleteIndex = null;
+        let subtaskSortOrder = {};
+        let isDarkTheme = false;
+
+        // DOM элементы
+        const taskInput = document.getElementById('taskInput');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        const taskList = document.getElementById('taskList');
+        const sortSelect = document.getElementById('sortSelect');
+        const sortBtn = document.getElementById('sortBtn');
+        const forceRefreshBtn = document.getElementById('forceRefreshBtn');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDelete = document.getElementById('confirmDelete');
+        const cancelDelete = document.getElementById('cancelDelete');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const emptyState = document.getElementById('emptyState');
+        const errorMessage = document.getElementById('errorMessage');
+        const deleteItemName = document.getElementById('deleteItemName');
+        const debugToggle = document.getElementById('debugToggle');
+        const debugInfo = document.getElementById('debugInfo');
+        const tasksCount = document.getElementById('tasksCount');
+        const lastError = document.getElementById('lastError');
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeText = document.getElementById('themeText');
+        const themeStatus = document.getElementById('themeStatus');
+
+        // Загрузка темы из localStorage
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                enableDarkTheme();
+            } else {
+                enableLightTheme();
+            }
+        }
+
+        // Включение темной темы
+        function enableDarkTheme() {
+            document.documentElement.classList.add('dark-theme');
+            themeIcon.textContent = '☀️';
+            themeText.textContent = 'Светлая тема';
+            themeStatus.textContent = 'Тёмная';
+            isDarkTheme = true;
+            localStorage.setItem('theme', 'dark');
+        }
+
+        // Включение светлой темы
+        function enableLightTheme() {
+            document.documentElement.classList.remove('dark-theme');
+            themeIcon.textContent = '🌙';
+            themeText.textContent = 'Тёмная тема';
+            themeStatus.textContent = 'Светлая';
+            isDarkTheme = false;
+            localStorage.setItem('theme', 'light');
+        }
+
+        // Переключение темы
+        themeToggle.addEventListener('click', () => {
+            if (isDarkTheme) {
+                enableLightTheme();
+            } else {
+                enableDarkTheme();
+            }
+        });
+
+        // Переключение отладочной информации
+        debugToggle.addEventListener('click', () => {
+            if (debugInfo.style.display === 'none') {
+                debugInfo.style.display = 'block';
+                debugToggle.textContent = 'Скрыть отладку';
+            } else {
+                debugInfo.style.display = 'none';
+                debugToggle.textContent = 'Показать отладку';
+            }
+        });
+
+        // Добавление задачи
+        addTaskBtn.addEventListener('click', addTask);
+        taskInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+
+        function addTask() {
+            const title = taskInput.value.trim();
+            if (title) {
+                const task = {
+                    title,
+                    status: 'not-started',
+                    subtasks: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                // Показываем задачу локально сразу для лучшего UX
+                const tempId = 'temp-' + Date.now();
+                tasks.unshift({...task, id: tempId});
+                renderTasks();
+                
+                if (!db) {
+                    showError("Firebase не инициализирован");
+                    return;
+                }
+                
+                db.collection('tasks').add(task)
+                    .then((docRef) => {
+                        // Заменяем временную задачу на постоянную с реальным ID
+                        const index = tasks.findIndex(t => t.id === tempId);
+                        if (index !== -1) {
+                            tasks[index].id = docRef.id;
+                            renderTasks();
+                        }
+                    })
+                    .catch(error => {
+                        // Удаляем временную задачу при ошибке
+                        const index = tasks.findIndex(t => t.id === tempId);
+                        if (index !== -1) {
+                            tasks.splice(index, 1);
+                            renderTasks();
+                        }
+                        showError("Ошибка при добавлении задачи: " + error.message);
+                        lastError.textContent = error.message;
+                    });
+                    
+                taskInput.value = '';
+            }
+        }
+
+        // Получение задач из Firebase
+        function getTasks() {
+            showLoading();
+            
+            if (!db) {
+                showError("Firebase не инициализирован");
+                hideLoading();
+                return;
+            }
+            
+            try {
+                db.collection('tasks').orderBy('createdAt', 'desc').onSnapshot(
+                    snapshot => {
+                        hideLoading();
+                        tasks = [];
+                        snapshot.forEach(doc => {
+                            const task = doc.data();
+                            task.id = doc.id;
+                            // Убедимся, что у всех задач есть массив подзадач
+                            if (!task.subtasks) task.subtasks = [];
+                            tasks.push(task);
+                        });
+                        
+                        tasksCount.textContent = tasks.length;
+                        
+                        if (tasks.length === 0) {
+                            emptyState.style.display = 'block';
+                        } else {
+                            emptyState.style.display = 'none';
+                        }
+                        
+                        renderTasks();
+                    },
+                    error => {
+                        hideLoading();
+                        showError("Ошибка при загрузке задач: " + error.message);
+                        lastError.textContent = error.message;
+                        console.error("Ошибка при загрузке задач: ", error);
+                    }
+                );
+            } catch (error) {
+                hideLoading();
+                showError("Исключение при загрузке задач: " + error.message);
+                lastError.textContent = error.message;
+            }
+        }
+
+        // Принудительное обновление данных
+        forceRefreshBtn.addEventListener('click', getTasks);
+
+        // Расчет прогресса выполнения задачи
+        function calculateProgress(subtasks) {
+            if (!subtasks || subtasks.length === 0) return 0;
+            
+            const completed = subtasks.filter(subtask => subtask.status === 'completed').length;
+            return Math.round((completed / subtasks.length) * 100);
+        }
+
+        // Сортировка подзадач
+        function sortSubtasks(subtasks, taskId) {
+            const order = subtaskSortOrder[taskId] || 'status';
+            let sorted = [...subtasks];
+            
+            switch (order) {
+                case 'status':
+                    const statusOrder = { 'completed': 0, 'in-progress': 1, 'not-started': 2 };
+                    sorted.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+                    break;
+                case 'title':
+                    sorted.sort((a, b) => a.title.localeCompare(b.title));
+                    break;
+                case 'created':
+                    // Для подзадач нет поля created, используем исходный порядок
+                    break;
+            }
+            
+            return sorted;
+        }
+
+        // Отображение задач
+        function renderTasks() {
+            taskList.innerHTML = '';
+            
+            tasks.forEach((task, index) => {
+                const progress = calculateProgress(task.subtasks);
+                const sortedSubtasks = sortSubtasks(task.subtasks, task.id);
+                
+                const li = document.createElement('li');
+                li.className = 'task-item';
+                li.dataset.id = task.id;
+                
+                // Заголовок задачи
+                const taskHeader = document.createElement('div');
+                taskHeader.className = 'task-header';
+                
+                const titleContainer = document.createElement('div');
+                titleContainer.className = 'task-title-container';
+                
+                const title = document.createElement('div');
+                title.className = 'task-title';
+                title.textContent = task.title;
+                title.contentEditable = true;
+                
+                title.addEventListener('blur', () => {
+                    updateTask(task.id, { title: title.textContent, updatedAt: new Date().toISOString() });
+                });
+                
+                // Прогресс выполнения
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'progress-container';
+                
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                progressBar.style.width = `${progress}%`;
+                
+                const progressText = document.createElement('div');
+                progressText.className = 'progress-text';
+                progressText.textContent = `Выполнено: ${progress}%`;
+                
+                progressContainer.appendChild(progressBar);
+                titleContainer.appendChild(title);
+                titleContainer.appendChild(progressContainer);
+                titleContainer.appendChild(progressText);
+                
+                // Контейнер для статуса и действий
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'task-status-container';
+                
+                // Статус задачи
+                const statusBadge = document.createElement('span');
+                statusBadge.className = `status-badge status-${task.status}`;
+                statusBadge.textContent = getStatusText(task.status);
+                
+                statusBadge.addEventListener('click', () => {
+                    const newStatus = getNextStatus(task.status);
+                    updateTask(task.id, { status: newStatus, updatedAt: new Date().toISOString() });
+                });
+                
+                // Действия с задачей
+                const actions = document.createElement('div');
+                actions.className = 'task-actions';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-danger btn-sm';
+                deleteBtn.textContent = 'Удалить';
+                deleteBtn.addEventListener('click', () => {
+                    showDeleteModal(task.id, true, index, task.title);
+                });
+                
+                actions.appendChild(deleteBtn);
+                
+                statusContainer.appendChild(statusBadge);
+                statusContainer.appendChild(actions);
+                
+                taskHeader.appendChild(titleContainer);
+                taskHeader.appendChild(statusContainer);
+                
+                li.appendChild(taskHeader);
+                
+                // Заголовок для подзадач
+                if (task.subtasks && task.subtasks.length > 0) {
+                    const subtaskHeader = document.createElement('div');
+                    subtaskHeader.className = 'subtask-header';
+                    
+                    const subtaskTitle = document.createElement('h4');
+                    subtaskTitle.textContent = `Подзадачи (${task.subtasks.length})`;
+                    
+                    const subtaskSortContainer = document.createElement('div');
+                    subtaskSortContainer.className = 'subtask-sort';
+                    
+                    const subtaskSortLabel = document.createElement('span');
+                    subtaskSortLabel.textContent = 'Сортировка:';
+                    subtaskSortLabel.style.fontSize = '12px';
+                    
+                    const subtaskSortSelect = document.createElement('select');
+                    subtaskSortSelect.className = 'sort-select';
+                    subtaskSortSelect.innerHTML = `
+                        <option value="status">По статусу</option>
+                        <option value="title">По названию</option>
+                        <option value="created">По порядку</option>
+                    `;
+                    
+                    // Устанавливаем текущее значение сортировки
+                    subtaskSortSelect.value = subtaskSortOrder[task.id] || 'status';
+                    
+                    subtaskSortSelect.addEventListener('change', () => {
+                        subtaskSortOrder[task.id] = subtaskSortSelect.value;
+                        renderTasks();
+                    });
+                    
+                    subtaskSortContainer.appendChild(subtaskSortLabel);
+                    subtaskSortContainer.appendChild(subtaskSortSelect);
+                    subtaskHeader.appendChild(subtaskTitle);
+                    subtaskHeader.appendChild(subtaskSortContainer);
+                    
+                    li.appendChild(subtaskHeader);
+                }
+                
+                // Форма для подзадач
+                const subtaskForm = document.createElement('div');
+                subtaskForm.className = 'subtask-form';
+                
+                const subtaskInput = document.createElement('input');
+                subtaskInput.type = 'text';
+                subtaskInput.className = 'task-input';
+                subtaskInput.placeholder = 'Добавить подзадачу...';
+                
+                const addSubtaskBtn = document.createElement('button');
+                addSubtaskBtn.className = 'btn btn-primary btn-sm';
+                addSubtaskBtn.textContent = 'Добавить';
+                addSubtaskBtn.addEventListener('click', () => {
+                    const subtaskTitle = subtaskInput.value.trim();
+                    if (subtaskTitle) {
+                        const subtask = {
+                            title: subtaskTitle,
+                            status: 'not-started'
+                        };
+                        
+                        const updatedSubtasks = [...task.subtasks, subtask];
+                        updateTask(task.id, { subtasks: updatedSubtasks, updatedAt: new Date().toISOString() });
+                        subtaskInput.value = '';
+                    }
+                });
+                
+                subtaskForm.appendChild(subtaskInput);
+                subtaskForm.appendChild(addSubtaskBtn);
+                li.appendChild(subtaskForm);
+                
+                // Список подзадач
+                if (sortedSubtasks && sortedSubtasks.length > 0) {
+                    const subtaskList = document.createElement('ul');
+                    subtaskList.className = 'subtask-list';
+                    
+                    sortedSubtasks.forEach((subtask, subtaskIndex) => {
+                        // Находим оригинальный индекс для правильного обновления
+                        const originalIndex = task.subtasks.findIndex(s => s.title === subtask.title && s.status === subtask.status);
+                        
+                        const subtaskItem = document.createElement('li');
+                        subtaskItem.className = 'subtask-item';
+                        
+                        const subtaskStatus = document.createElement('span');
+                        subtaskStatus.className = `status-badge status-${subtask.status}`;
+                        subtaskStatus.textContent = getStatusText(subtask.status);
+                        
+                        subtaskStatus.addEventListener('click', () => {
+                            const updatedSubtasks = [...task.subtasks];
+                            updatedSubtasks[originalIndex].status = getNextStatus(subtask.status);
+                            updateTask(task.id, { subtasks: updatedSubtasks, updatedAt: new Date().toISOString() });
+                        });
+                        
+                        const subtaskTitle = document.createElement('div');
+                        subtaskTitle.className = 'subtask-title';
+                        subtaskTitle.textContent = subtask.title;
+                        subtaskTitle.contentEditable = true;
+                        
+                        subtaskTitle.addEventListener('blur', () => {
+                            const updatedSubtasks = [...task.subtasks];
+                            updatedSubtasks[originalIndex].title = subtaskTitle.textContent;
+                            updateTask(task.id, { subtasks: updatedSubtasks, updatedAt: new Date().toISOString() });
+                        });
+                        
+                        const deleteSubtaskBtn = document.createElement('button');
+                        deleteSubtaskBtn.className = 'btn btn-danger btn-sm';
+                        deleteSubtaskBtn.textContent = '×';
+                        deleteSubtaskBtn.addEventListener('click', () => {
+                            showDeleteModal(task.id, false, index, subtask.title, originalIndex);
+                        });
+                        
+                        subtaskItem.appendChild(subtaskStatus);
+                        subtaskItem.appendChild(subtaskTitle);
+                        subtaskItem.appendChild(deleteSubtaskBtn);
+                        subtaskList.appendChild(subtaskItem);
+                    });
+                    
+                    li.appendChild(subtaskList);
+                }
+                
+                taskList.appendChild(li);
+            });
+        }
+
+        // Обновление задачи в Firebase
+        function updateTask(id, updates) {
+            if (!db) {
+                showError("Firebase не инициализирован");
+                return;
+            }
+            
+            db.collection('tasks').doc(id).update(updates)
+                .catch(error => {
+                    showError("Ошибка при обновлении задачи: " + error.message);
+                    lastError.textContent = error.message;
+                    console.error("Ошибка при обновлении задачи: ", error);
+                });
+        }
+
+        // Удаление задачи
+        function deleteTask(id) {
+            if (!db) {
+                showError("Firebase не инициализирован");
+                return;
+            }
+            
+            db.collection('tasks').doc(id).delete()
+                .catch(error => {
+                    showError("Ошибка при удалении задачи: " + error.message);
+                    lastError.textContent = error.message;
+                    console.error("Ошибка при удалении задачи: ", error);
+                });
+        }
+
+        // Удаление подзадачи
+        function deleteSubtask(taskIndex, subtaskIndex) {
+            const task = tasks[taskIndex];
+            const updatedSubtasks = [...task.subtasks];
+            updatedSubtasks.splice(subtaskIndex, 1);
+            
+            updateTask(task.id, { subtasks: updatedSubtasks, updatedAt: new Date().toISOString() });
+        }
+
+        // Модальное окно подтверждения удаления
+        function showDeleteModal(id, isTask, index, name, subtaskIndex = null) {
+            currentDeleteId = id;
+            isDeletingTask = isTask;
+            currentDeleteIndex = index;
+            deleteItemName.textContent = name;
+            deleteModal.style.display = 'flex';
+            
+            // Сохраняем дополнительную информацию для подзадач
+            if (!isTask) {
+                currentDeleteIndex = { taskIndex: index, subtaskIndex };
+            }
+        }
+
+        confirmDelete.addEventListener('click', () => {
+            if (isDeletingTask) {
+                deleteTask(currentDeleteId);
+            } else {
+                deleteSubtask(currentDeleteIndex.taskIndex, currentDeleteIndex.subtaskIndex);
+            }
+            deleteModal.style.display = 'none';
+        });
+
+        cancelDelete.addEventListener('click', () => {
+            deleteModal.style.display = 'none';
+        });
+
+        // Функции для работы со статусами
+        function getStatusText(status) {
+            switch(status) {
+                case 'not-started': return 'Не начато';
+                case 'in-progress': return 'В работе';
+                case 'completed': return 'Завершено';
+                default: return status;
+            }
+        }
+
+        function getNextStatus(currentStatus) {
+            switch(currentStatus) {
+                case 'not-started': return 'in-progress';
+                case 'in-progress': return 'completed';
+                case 'completed': return 'not-started';
+                default: return 'not-started';
+            }
+        }
+
+        // Сортировка задач
+        sortBtn.addEventListener('click', () => {
+            const sortBy = sortSelect.value;
+            
+            if (sortBy === 'created') {
+                tasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            } else if (sortBy === 'status') {
+                const statusOrder = { 'not-started': 0, 'in-progress': 1, 'completed': 2 };
+                tasks.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+            } else if (sortBy === 'title') {
+                tasks.sort((a, b) => a.title.localeCompare(b.title));
+            } else if (sortBy === 'progress') {
+                tasks.sort((a, b) => {
+                    const progressA = calculateProgress(a.subtasks);
+                    const progressB = calculateProgress(b.subtasks);
+                    return progressB - progressA; // Сортировка по убыванию прогресса
+                });
+            }
+            
+            renderTasks();
+        });
+
+        // Вспомогательные функции
+        function showLoading() {
+            loadingIndicator.style.display = 'block';
+            taskList.style.display = 'none';
+            emptyState.style.display = 'none';
+        }
+
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+            taskList.style.display = 'block';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            
+            // Скрываем сообщение через 5 секунд
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', function() {
+            // Загружаем тему
+            loadTheme();
+            
+            if (db) {
+                getTasks();
+            } else {
+                showError("Firebase не инициализирован. Проверьте конфигурацию.");
+                hideLoading();
+                emptyState.style.display = 'block';
+                emptyState.innerHTML = '<h3>Ошибка инициализации Firebase</h3><p>Проверьте конфигурацию и правила доступа к базе данных</p>';
+            }
+        });
+    </script>
 </body>
 </html>
